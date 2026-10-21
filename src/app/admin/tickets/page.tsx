@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { TicketStatusBadge } from "@/components/site/status-badge";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatDate, TICKET_STATUS_LABEL, TICKET_TYPE_LABEL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,7 @@ const STATUS_FILTERS: (TicketStatus | "")[] = ["", "open", "in_progress", "resol
 const TYPE_FILTERS: (TicketType | "")[] = ["", "custom_request", "order_issue", "general"];
 
 export default async function AdminTicketsPage({ searchParams }: { searchParams: Promise<{ status?: string; type?: string }> }) {
+  await requireAdmin();
   const sp = await searchParams;
   const status = STATUS_FILTERS.includes(sp.status as TicketStatus) ? (sp.status as TicketStatus) : "";
   const type = TYPE_FILTERS.includes(sp.type as TicketType) ? (sp.type as TicketType) : "";

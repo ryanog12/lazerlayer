@@ -2,11 +2,13 @@ import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { OrderStatusBadge, TicketStatusBadge } from "@/components/site/status-badge";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatDate, formatPrice, PAYMENT_METHOD_LABEL, TICKET_TYPE_LABEL } from "@/lib/format";
 
 export const metadata = { title: "Dashboard" };
 
 export default async function AdminDashboard() {
+  await requireAdmin();
   const [pendingCount, productionCount, openTickets, revenue, recentOrders, tickets] = await Promise.all([
     db.order.count({ where: { status: "pending_payment" } }),
     db.order.count({ where: { status: { in: ["paid", "in_production"] } } }),

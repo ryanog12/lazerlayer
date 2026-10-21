@@ -9,11 +9,13 @@ import { ReplyForm } from "@/components/tickets/reply-form";
 import { TicketThread } from "@/components/tickets/ticket-thread";
 import { setTicketStatus } from "@/actions/admin";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatDate, TICKET_STATUS_LABEL, TICKET_TYPE_LABEL } from "@/lib/format";
 
 export const metadata = { title: "Ticket" };
 
 export default async function AdminTicketPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
   const { id } = await params;
   const ticket = await db.ticket.findUnique({
     where: { id },

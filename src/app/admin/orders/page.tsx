@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { OrderStatusBadge } from "@/components/site/status-badge";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatDate, formatPrice, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,7 @@ export const metadata = { title: "Orders" };
 const FILTERS: (OrderStatus | "")[] = ["", "pending_payment", "paid", "in_production", "shipped", "completed", "cancelled"];
 
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
+  await requireAdmin();
   const { status = "" } = await searchParams;
   const valid = FILTERS.includes(status as OrderStatus) ? (status as OrderStatus | "") : "";
   const orders = await db.order.findMany({

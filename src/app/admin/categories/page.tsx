@@ -2,11 +2,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ConfirmDelete } from "@/components/admin/confirm-delete";
 import { deleteCategory } from "@/actions/admin";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { CategoryForm } from "./category-form";
 
 export const metadata = { title: "Categories" };
 
 export default async function AdminCategoriesPage() {
+  await requireAdmin();
   const categories = await db.category.findMany({
     include: { _count: { select: { products: true } } },
     orderBy: { name: "asc" },

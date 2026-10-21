@@ -8,11 +8,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { ConfirmDelete } from "@/components/admin/confirm-delete";
 import { deleteProduct } from "@/actions/admin";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatPrice } from "@/lib/format";
 
 export const metadata = { title: "Products" };
 
 export default async function AdminProductsPage() {
+  await requireAdmin();
   const products = await db.product.findMany({ include: { category: true }, orderBy: { createdAt: "desc" } });
   return (
     <div className="space-y-6">

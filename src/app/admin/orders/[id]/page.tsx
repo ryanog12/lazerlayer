@@ -8,11 +8,13 @@ import { SubmitButton } from "@/components/site/submit-button";
 import { ActionForm } from "@/components/site/action-form";
 import { confirmManualPayment, updateOrderStatus } from "@/actions/admin";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatDate, formatPrice, ORDER_STATUS_LABEL, PAYMENT_METHOD_LABEL } from "@/lib/format";
 
 export const metadata = { title: "Order details" };
 
 export default async function AdminOrderPage({ params }: { params: Promise<{ id: string }> }) {
+  await requireAdmin();
   const { id } = await params;
   const order = await db.order.findUnique({
     where: { id },

@@ -2,11 +2,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { db } from "@/lib/db";
+import { requireAdmin } from "@/lib/session";
 import { formatDate } from "@/lib/format";
 
 export const metadata = { title: "Users" };
 
 export default async function AdminUsersPage() {
+  await requireAdmin();
   const users = await db.user.findMany({
     select: { id: true, name: true, email: true, role: true, createdAt: true, _count: { select: { orders: true, tickets: true } } },
     orderBy: { createdAt: "desc" },
