@@ -5,6 +5,8 @@ import { Logo } from "@/components/site/logo";
 import { NavLink } from "@/components/site/nav-link";
 import { requireAdmin } from "@/lib/session";
 
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = { title: { default: "Admin", template: "%s · Admin · LazerLayer" }, robots: { index: false } };
 
 const NAV = [
