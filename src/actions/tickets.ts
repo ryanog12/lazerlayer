@@ -114,15 +114,13 @@ export async function replyToTicket(formData: FormData): Promise<ActionResult> {
   const isAdmin = user.role === "admin";
   if (!ticket || (!isAdmin && ticket.userId !== user.id)) return { error: "Ticket not found." };
 
-  await db.$transaction([
-    db.ticketMessage.create({ data: { ticketId, authorId: user.id, body, isStaff: isAdmin } }),
-    db.ticket.update({
-      where: { id: ticketId },
-      data: {
-        status: isAdmin ? (ticket.status === "open" ? "in_progress" : ticket.status) : ticket.status === "resolved" ? "open" : ticket.status,
-      },
-    }),
-  ]);
+  await db.ticketMessage.create({ data: { ticketId, authorId: user.id, body, isStaff: isAdmin } });
+  await db.ticket.update({
+    where: { id: ticketId },
+    data: {
+      status: isAdmin ? (ticket.status === "open" ? "in_progress" : ticket.status) : ticket.status === "resolved" ? "open" : ticket.status,
+    },
+  });
 
   if (isAdmin && ticket.contactEmail) {
     await sendEmail({

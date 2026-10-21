@@ -1,39 +1,27 @@
 import { PrismaClient } from "@prisma/client";
-import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaD1 } from "@prisma/adapter-d1";
 import { workerContext } from "@/lib/cloudflare";
 
-function createClient(connectionString: string) {
-  return new PrismaClient({ adapter: new PrismaPg({ connectionString }) });
-}
-
-function connectionString() {
-  // Prefer Cloudflare Hyperdrive (pooled, edge-cached connections) when the binding is configured.
-  const hyperdrive = workerContext()?.env.HYPERDRIVE;
-  const url = hyperdrive?.connectionString ?? process.env.DATABASE_URL;
-  if (!url) throw new Error("DATABASE_URL is not set.");
-  return url;
-}
-
-// Workers forbid sharing sockets between requests, so on Workers each request gets its own
-// client (and connection pool). Under Node.js a single client is reused.
+// One client per request (keyed on the request's ExecutionContext) so nothing request-scoped is
+// shared across requests on Workers. Under `next dev` the context comes from wrangler's local D1.
 const perRequest = new WeakMap<object, PrismaClient>();
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
 function getClient(): PrismaClient {
-  const ctx = workerContext()?.ctx;
-  if (ctx) {
-    let client = perRequest.get(ctx);
-    if (!client) {
-      client = createClient(connectionString());
-      perRequest.set(ctx, client);
-    }
-    return client;
+  const context = workerContext();
+  if (!context?.env.DB) {
+    throw new Error(
+      "Cloudflare D1 binding `DB` is unavailable. Run the app with `npm run dev` or `npm run preview` (not `next start`).",
+    );
   }
-  globalForPrisma.prisma ??= createClient(connectionString());
-  return globalForPrisma.prisma;
+  let client = perRequest.get(context.ctx);
+  if (!client) {
+    client = new PrismaClient({ adapter: new PrismaD1(context.env.DB) });
+    perRequest.set(context.ctx, client);
+  }
+  return client;
 }
 
-/** Request-scoped Prisma client; safe to import at module level on both Node.js and Workers. */
+/** Request-scoped Prisma client backed by Cloudflare D1; safe to import at module level. */
 export const db = new Proxy({} as PrismaClient, {
   get(_, prop) {
     const client = getClient();

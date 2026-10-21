@@ -1,12 +1,10 @@
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-
-type WorkerContext = ReturnType<typeof getCloudflareContext>;
+import { getCloudflareContext, type CloudflareContext } from "@opennextjs/cloudflare";
 
 /**
- * The Cloudflare request context when running on Workers (`npm run preview` / deployed),
- * or null under plain Node.js (`next dev`, `next start`, scripts).
+ * The Cloudflare request context on Workers (`npm run preview` / deployed) or from wrangler's local
+ * emulation under `next dev`; null under plain Node.js without it (`next start`, scripts).
  */
-export function workerContext(): WorkerContext | null {
+export function workerContext(): CloudflareContext | null {
   try {
     return getCloudflareContext();
   } catch {

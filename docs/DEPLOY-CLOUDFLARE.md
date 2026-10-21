@@ -1,16 +1,17 @@
 # Deploying LazerLayer on Cloudflare
 
-This guide puts the LazerLayer website online using:
+This guide puts the LazerLayer website online. Everything runs on Cloudflare:
 
-- **Cloudflare Workers** to run the website
-- **Cloudflare R2** to store uploads: product photos, payment screenshots and customer STL files
-- **Neon** for the Postgres database (free plan)
+- **Cloudflare Workers** runs the website.
+- **Cloudflare D1** is the database (orders, products, accounts, tickets).
+- **Cloudflare R2** stores uploads: product photos, payment screenshots and customer STL files.
 
 You don't need to install anything on your computer. Everything happens in web dashboards. Once set up, every change
-merged into the `main` branch on GitHub deploys automatically.
+merged into the `main` branch on GitHub deploys automatically, and any database changes are applied as part of the
+deploy.
 
-Plan for about an hour the first time. Keep a text file open as you go: you'll copy several values (connection strings,
-keys) from one dashboard to another.
+Plan for about 45 minutes the first time. Keep a text file open for the values you'll copy along the way (passwords,
+keys).
 
 ---
 
@@ -19,54 +20,53 @@ keys) from one dashboard to another.
 | Service | Plan | Cost |
 | --- | --- | --- |
 | Cloudflare Workers | **Workers Paid** (required, see below) | $5/month, includes 10 million requests |
+| Cloudflare D1 | Included with Workers Paid | Free within generous limits (25 billion rows read/month, 5 GB storage) |
 | Cloudflare R2 | Free tier | Free up to 10 GB stored |
-| Neon Postgres | Free plan | Free (0.5 GB storage, plenty for a shop this size) |
 | Stripe | Pay per transaction | Stripe's normal card fees |
 | Resend (email) | Free plan | Free up to 3,000 emails/month |
 
-**Why Workers Paid is required:** the website is about 3.6 MB once packaged, and the free Workers plan only allows 3 MB.
+**Why Workers Paid is required:** the website is about 3.5 MB once packaged, and the free Workers plan only allows 3 MB.
 The free plan also limits each request to 10 ms of processing time, which isn't enough for secure password checks at
 login. Workers Paid raises both limits.
 
 ---
 
-## Step 1 — Create the database on Neon
+## Step 1 — Create a Cloudflare account and subscribe to Workers Paid
 
-1. Go to [neon.tech](https://neon.tech) and sign up (GitHub sign-in works).
-2. Create a project:
-   - **Project name:** `lazerlayer`
-   - **Postgres version:** the default (16 or newer)
-   - **Region:** pick the one closest to most of your customers (e.g. *AWS US East (N. Virginia)*)
-3. On the project dashboard, click **Connect**. A dialog shows a connection string starting with `postgresql://`.
-4. You need **two** versions of this string:
-   - **Pooled:** turn **Connection pooling** **on** and copy the string. The host name contains `-pooler`.
-     Save it in your notes as **`DATABASE_URL (pooled)`**. The live website uses this one.
-   - **Direct:** turn **Connection pooling** **off** and copy the string again. There's no `-pooler` in the host.
-     Save it as **`DATABASE_URL (direct)`**. Cloudflare uses this one when it updates the database during each deploy.
-
-Both strings contain your database password. Treat them like passwords.
+1. Sign up at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up) if you don't have an account.
+2. In the left sidebar open **Workers & Pages** → **Plans**, and choose **Workers Paid** ($5/month).
 
 ---
 
-## Step 2 — Create a Cloudflare account and the R2 bucket
+## Step 2 — Create the database (D1)
 
-1. Sign up at [dash.cloudflare.com](https://dash.cloudflare.com/sign-up) if you don't have an account.
-2. Subscribe to Workers Paid: in the left sidebar open **Workers & Pages** → **Plans**, and choose **Workers Paid**
-   ($5/month).
-3. Turn on R2: in the left sidebar open **R2 Object Storage**. If asked, click **Purchase R2 Plan** (the free tier still
-   asks for a payment method but costs nothing under 10 GB).
-4. Click **Create bucket**:
-   - **Bucket name:** `lazerlayer-uploads` (exactly this; the code expects it)
+1. In the left sidebar open **Storage & Databases** → **D1 SQL Database**.
+2. Click **Create Database**:
+   - **Name:** `lazerlayer-db` (exactly this; the website looks the database up by this name)
+   - **Location:** leave **Automatic**, or pick the region closest to most of your customers
+3. Click **Create**.
+
+The database starts empty. The first deploy (Step 4) creates the tables and adds the starter catalog and your admin
+account.
+
+---
+
+## Step 3 — Create the storage bucket (R2)
+
+1. In the left sidebar open **R2 Object Storage**. If asked, click **Purchase R2 Plan** (the free tier still asks for a
+   payment method but costs nothing under 10 GB).
+2. Click **Create bucket**:
+   - **Bucket name:** `lazerlayer-uploads` (exactly this)
    - **Location:** Automatic
    - **Default storage class:** Standard
-5. Click **Create bucket**. Leave the bucket **private**: don't enable public access or a public URL. The website
+3. Click **Create bucket**. Leave the bucket **private**: don't enable public access or a public URL. The website
    serves files itself and keeps payment screenshots visible only to admins.
 
 ---
 
-## Step 3 — Connect the GitHub repository (Workers Builds)
+## Step 4 — Connect the GitHub repository (Workers Builds)
 
-1. In Cloudflare, go to **Workers & Pages** → **Create** → **Import a repository** (on the *Workers* tab).
+1. Go to **Workers & Pages** → **Create** → **Import a repository** (on the *Workers* tab).
 2. Click **Connect GitHub** and allow Cloudflare to access the `ryanog12/lazerlayer` repository.
 3. Select the `lazerlayer` repository and fill in the project settings:
 
@@ -74,47 +74,60 @@ Both strings contain your database password. Treat them like passwords.
    | --- | --- |
    | **Project name** | `lazerlayer` (must match the `name` in `wrangler.jsonc`) |
    | **Production branch** | `main` |
-   | **Build command** | `npm run db:deploy && npx opennextjs-cloudflare build` |
-   | **Deploy command** | `npx opennextjs-cloudflare deploy` |
+   | **Build command** | `npx opennextjs-cloudflare build` |
+   | **Deploy command** | `npm run db:deploy && npx opennextjs-cloudflare deploy` |
    | **Root directory** | leave empty |
 
-4. Open **Advanced settings** → **Build variables** and add the following. These are used only while building, never by
-   the live site. Click **Encrypt** on anything secret.
+   `npm run db:deploy` applies any new database changes to `lazerlayer-db` before the new website version goes live. On
+   the very first deploy it also adds the starter catalog (5 categories, 10 products) and your admin account. After
+   that it **never** re-seeds or overwrites your data.
+
+4. Open **Advanced settings** → **Build variables** and add the following. They're used only while building and
+   deploying, never by the live site. Click **Encrypt** on the password.
 
    | Variable | Value | Encrypt? |
    | --- | --- | --- |
-   | `DATABASE_URL` | your **`DATABASE_URL (direct)`** from Step 1 | yes |
    | `NEXT_PUBLIC_SITE_URL` | `https://lazerlayer.<your-subdomain>.workers.dev` for now (see note below) | no |
    | `SEED_ADMIN_EMAIL` | the email you'll use to log in as admin | no |
    | `SEED_ADMIN_PASSWORD` | a strong password for that admin account | yes |
    | `SEED_DEMO_CUSTOMER` | `false` | no |
 
    *Your `workers.dev` subdomain is listed under **Workers & Pages** → **Overview** (right side, "Subdomain"). The site
-   URL is `https://lazerlayer.<that-subdomain>.workers.dev`. You'll change this to your real domain in Step 6.*
+   URL is `https://lazerlayer.<that-subdomain>.workers.dev`. You'll change this to your real domain in Step 8.*
 
-5. Click **Save and Deploy**. The first build takes a few minutes. What it does:
-   - `npm run db:deploy` creates all database tables. Because the database is empty, it also adds the starter catalog
-     (5 categories, 10 products) and your admin account. Later builds apply any new database changes but **never**
-     re-seed or touch your data.
-   - It then builds and publishes the website.
+5. Click **Save and Deploy**.
 
-   The site won't work yet. It still needs its runtime secrets (next step).
-
-6. **Turn off preview builds.** Go to your Worker → **Settings** → **Build** → **Branch control** and **disable builds
-   for non-production branches**. Otherwise a pull request could update the live database before it's merged.
+**The first deploy will fail at the database step. That's expected:** the access key Cloudflare creates for builds can't
+touch D1 databases yet. Fix it in the next step.
 
 ---
 
-## Step 4 — Add the runtime secrets
+## Step 5 — Allow builds to update the database
+
+1. Click your profile icon (top right) → **Profile** → **API Tokens**.
+2. Find the token Cloudflare created for Workers Builds. Its name contains **Workers Builds** and the date you connected
+   the repo. Click **⋯** → **Edit**.
+3. Under **Permissions**, click **+ Add more** and add: **Account** · **D1** · **Edit**.
+4. Click **Continue to summary** → **Update token**.
+5. Go back to **Workers & Pages** → `lazerlayer` → **Deployments**, and click **Retry build** on the failed build.
+
+This build should finish in a few minutes. The build log shows `0001_init.sql ✅` and then
+`Seeded 5 categories and 10 products (remote D1)`.
+
+6. **Turn off preview builds.** Go to `lazerlayer` → **Settings** → **Build** → **Branch control** and **disable builds
+   for non-production branches**. Otherwise a pull request could change the live database before it's merged.
+
+---
+
+## Step 6 — Add the runtime secrets
 
 Go to **Workers & Pages** → `lazerlayer` → **Settings** → **Variables and Secrets** → **Add**. For each row, choose
-**Type: Secret** for secrets and **Type: Text** for the rest, then **Deploy**.
+**Type: Secret** for secrets and **Type: Text** for the rest, then click **Deploy**.
 
 ### Required
 
 | Name | Type | Value |
 | --- | --- | --- |
-| `DATABASE_URL` | Secret | your **`DATABASE_URL (pooled)`** from Step 1 |
 | `AUTH_SECRET` | Secret | a random 32+ character string. Generate one at [generate-secret.vercel.app/32](https://generate-secret.vercel.app/32) or run `openssl rand -base64 32` |
 
 ### Payment handles (shown at checkout)
@@ -160,21 +173,23 @@ Saving variables deploys them right away. No rebuild is needed.
 
 ---
 
-## Step 5 — Check that it works
+## Step 7 — Check that it works
 
 1. Open `https://lazerlayer.<your-subdomain>.workers.dev`. The homepage and catalog should show the 10 starter products.
-2. Click **Log in** and sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from Step 3.
+2. Click **Log in** and sign in with `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD` from Step 4.
 3. Open **Admin** → **Products** → edit a product, upload a photo, save, and check the photo appears on the product page.
    This confirms R2 is working.
 4. Register a customer account in another browser, place an order with Zelle/Cash App/Venmo, click *I've sent the
    payment* and attach a screenshot. Then confirm the payment as admin under **Admin** → **Orders**.
+
+To look at the data directly, open **Storage & Databases** → **D1 SQL Database** → `lazerlayer-db` → **Explore Data**.
 
 If something fails, go to `lazerlayer` → **Observability** → **Logs** (or **Deployments** → latest → **View build log**
 for build errors). See *Troubleshooting* below.
 
 ---
 
-## Step 6 — Use your own domain
+## Step 8 — Use your own domain
 
 Your domain must be on Cloudflare. If you bought it elsewhere, add it in Cloudflare (**Add a domain**) and change the
 nameservers at your registrar to the two Cloudflare shows. This usually takes under an hour.
@@ -195,27 +210,13 @@ nameservers at your registrar to the two Cloudflare shows. This usually takes un
 
 ## Day-to-day
 
-- **Deploying changes:** merge a pull request into `main`. Cloudflare builds and deploys automatically. Progress is under
-  `lazerlayer` → **Deployments**.
-- **Rolling back:** **Deployments** → pick an older deployment → **Rollback**. Note that database changes are not rolled
+- **Deploying changes:** merge a pull request into `main`. Cloudflare applies any database changes, then deploys the new
+  site. Progress is under `lazerlayer` → **Deployments**.
+- **Rolling back the site:** **Deployments** → pick an older deployment → **Rollback**. Database changes are not rolled
   back.
-- **Database backups:** Neon keeps a restore window on every plan (Neon console → **Backup & Restore**).
+- **Database backups:** D1 Time Travel can restore the database to any minute in the last 30 days. Ask a developer to run
+  `npx wrangler d1 time-travel restore lazerlayer-db --timestamp=<time>`.
 - **Uploaded files** are in R2 → `lazerlayer-uploads`, in folders `products/`, `proofs/` and `requests/`.
-
----
-
-## Optional — Faster database with Hyperdrive
-
-Each page load opens a fresh connection to Neon. Cloudflare Hyperdrive keeps connections warm close to your visitors
-and makes pages noticeably faster. It's included with Workers Paid.
-
-1. **Workers & Pages** → **Hyperdrive** → **Create configuration**. Name it `lazerlayer-db` and paste your
-   **`DATABASE_URL (direct)`** connection string. Copy the **ID** it shows.
-2. In `wrangler.jsonc`, uncomment the `"hyperdrive"` block and replace `<HYPERDRIVE_ID>` with that ID. Commit to `main`
-   (ask a developer, or edit the file directly on GitHub).
-
-When the Hyperdrive binding exists, the site uses it automatically. `DATABASE_URL` is still needed for migrations at
-build time.
 
 ---
 
@@ -223,11 +224,13 @@ build time.
 
 | Symptom | Fix |
 | --- | --- |
-| Build fails at `prisma migrate deploy` with a connection error | Check the `DATABASE_URL` **build variable** is the *direct* (non-pooler) Neon string and ends with `?sslmode=require`. |
-| Build fails: "R2 bucket lazerlayer-uploads not found" | Create the bucket with that exact name (Step 2). |
-| Deploy fails: "Your Worker exceeded the size limit of 3 MiB" | Subscribe to Workers Paid (Step 2). |
-| Site shows "Application error" / 500 on every page | `DATABASE_URL` or `AUTH_SECRET` runtime secret missing (Step 4). Check **Observability** → **Logs**. |
-| Login form says invalid credentials for the admin | The seed only runs on an empty database. If the first build ran before you set `SEED_ADMIN_*`, the default admin is `admin@lazerlayer.com` / `LazerAdmin123!`. Log in with it and change it, or ask a developer to reset it. |
+| Deploy fails at `wrangler d1 migrations apply` with "Authentication error" or code 10000 | Add the **D1 · Edit** permission to the Workers Builds API token (Step 5), then retry the build. |
+| Deploy fails with "Couldn't find a D1 DB with the name or binding 'lazerlayer-db'" | Create the D1 database with exactly that name (Step 2). |
+| Deploy fails: "R2 bucket lazerlayer-uploads not found" | Create the bucket with exactly that name (Step 3). |
+| Deploy fails: "Your Worker exceeded the size limit of 3 MiB" | Subscribe to Workers Paid (Step 1). |
+| Site shows "Application error" / 500 on every page | `AUTH_SECRET` is missing (Step 6). Check **Observability** → **Logs**. |
+| Pages fail with "no such table" | Database setup didn't run. Open the latest build log and check the `db:deploy` step for errors. |
+| Login says invalid credentials for the admin | The seed only runs on an empty database. If the first successful deploy ran before you set `SEED_ADMIN_*`, the default admin is `admin@lazerlayer.com` / `LazerAdmin123!`. Log in with it and change it, or ask a developer to reset it. |
 | Card checkout shows "Simulated payment" | `STRIPE_SECRET_KEY` isn't set. |
 | Orders paid by card stay "Pending payment" | Webhook URL or `STRIPE_WEBHOOK_SECRET` is wrong. Check Stripe → **Webhooks** → your endpoint → recent deliveries. |
 | Emails not arriving | Check `RESEND_API_KEY`, and that `EMAIL_FROM` uses a domain verified in Resend. |
@@ -236,14 +239,20 @@ build time.
 
 ## For developers
 
-- `npm run dev`: plain Next.js on Node with your local `.env`; uploads go to `./uploads`.
-- `npm run preview`: builds with OpenNext and runs the real Workers runtime locally (`wrangler dev`) on
-  http://localhost:8787, with a local emulated R2 bucket. Secrets come from `.dev.vars` (copy `.dev.vars.example`).
-- `npm run deploy`: build and deploy from your machine (needs `npx wrangler login`). OpenNext bundles `.env*` files into
-  the Worker, so don't keep production secrets in a local `.env` when deploying this way.
-- `npm run cf-typegen`: regenerate `cloudflare-env.d.ts` after changing bindings in `wrangler.jsonc`.
-- How the Workers specifics work:
-  - Prisma uses `@prisma/adapter-pg` with one client per request on Workers (`src/lib/db.ts`).
-  - Uploads use the `UPLOADS` R2 binding with a filesystem fallback (`src/lib/uploads.ts`), served by
-    `/api/uploads/[...key]`.
-  - The Stripe webhook verifies signatures with `constructEventAsync` (Web Crypto).
+- No database server is needed. D1 and R2 are emulated locally by wrangler in `.wrangler/state`.
+  - `npm run db:setup` migrates and seeds the local D1.
+  - `npm run dev` runs Next.js with the local bindings (via `initOpenNextCloudflareForDev`).
+  - `npm run preview` runs the real Workers runtime on http://localhost:8787, with secrets from `.dev.vars`.
+- Schema changes: edit `prisma/schema.prisma`, run `npx wrangler d1 migrations create lazerlayer-db <name>`, fill the
+  new file with `npx prisma migrate diff --from-local-d1 --to-schema-datamodel prisma/schema.prisma --script --output
+  migrations/<file>.sql`, then run `npm run db:migrate:local`. Deploys apply it to production automatically. Keep
+  migrations additive (add columns or tables) so the old site keeps working during the deploy.
+- D1 specifics:
+  - There are no interactive transactions. Checkout reserves stock with guarded single-row updates and releases them on
+    failure (`src/actions/checkout.ts`).
+  - `Product.images` is a JSON string. Read it with `productImages()` from `src/lib/format.ts`.
+  - Text search with `contains` is case-insensitive for ASCII (SQLite `LIKE`).
+- `npm run deploy` builds and deploys from your machine (needs `npx wrangler login`, plus `npm run db:deploy` for
+  migrations). OpenNext bundles `.env*` files into the Worker, so don't keep production secrets in a local `.env` when
+  deploying this way.
+- `npm run cf-typegen` regenerates `cloudflare-env.d.ts` after changing bindings in `wrangler.jsonc`.

@@ -2,9 +2,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// Cloudflare D1 (SQLite). Queries go through the D1 binding via @prisma/adapter-d1, so this URL is
+// only a placeholder for the Prisma CLI; schema changes ship as SQL files in ../migrations.
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 enum Role {
@@ -67,7 +69,8 @@ model Product {
   description String
   /// Price in cents
   price       Int
-  images      String[]
+  /// JSON-encoded string[] of image URLs (SQLite has no array columns); use productImages()
+  images      String      @default("[]")
   materials   String?
   /// Null stock with isCustom = true means made-to-order
   stock       Int?

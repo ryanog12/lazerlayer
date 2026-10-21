@@ -38,7 +38,10 @@ export const contentTypeFor = (key: string) =>
 const KEY_PATTERN = /^(products|proofs|requests)\/[0-9a-f-]{36}\.[a-z0-9]{1,5}$/;
 export const isValidUploadKey = (key: string) => KEY_PATTERN.test(key);
 
-/** Cloudflare R2 when the UPLOADS binding exists (Workers), otherwise ./uploads on local disk. */
+/**
+ * Cloudflare R2 when the UPLOADS binding exists (Workers, and wrangler's local bucket under `next dev`),
+ * otherwise ./uploads on local disk.
+ */
 function r2Bucket() {
   return workerContext()?.env.UPLOADS ?? null;
 }

@@ -99,7 +99,7 @@ export async function saveProduct(formData: FormData): Promise<ActionResult> {
     isCustom: d.isCustom,
     featured: d.featured,
     active: d.active,
-    images: [...keptImages, ...uploaded],
+    images: JSON.stringify([...keptImages, ...uploaded]),
   };
   if (!data.slug) return { error: "Slug could not be generated from the name." };
 
