@@ -11,7 +11,18 @@ const ADMIN_PASSWORD = process.env.SEED_ADMIN_PASSWORD ?? "LazerAdmin123!";
 const CUSTOMER_EMAIL = "customer@example.com";
 const CUSTOMER_PASSWORD = "Customer123!";
 
+// `--if-empty` (used by `npm run db:deploy` on every Cloudflare build) only seeds a brand-new
+// database, so later builds never overwrite products or accounts edited in the admin panel.
+const IF_EMPTY = process.argv.includes("--if-empty");
+// Set SEED_DEMO_CUSTOMER=false in production to skip the demo customer, order and ticket.
+const DEMO_CUSTOMER = process.env.SEED_DEMO_CUSTOMER !== "false";
+
 async function main() {
+  if (IF_EMPTY && (await db.user.count()) > 0) {
+    console.log("Database already has users; skipping seed.");
+    return;
+  }
+
   const imageDir = path.join(process.cwd(), "public", "products");
   mkdirSync(imageDir, { recursive: true });
   for (const p of products) {
@@ -50,6 +61,10 @@ async function main() {
       passwordHash: await bcrypt.hash(ADMIN_PASSWORD, 10),
     },
   });
+
+  console.log(`Seeded ${categories.length} categories and ${products.length} products.`);
+  console.log(`Admin:    ${ADMIN_EMAIL} / ${process.env.SEED_ADMIN_PASSWORD ? "(SEED_ADMIN_PASSWORD)" : ADMIN_PASSWORD}`);
+  if (!DEMO_CUSTOMER) return;
 
   const customer = await db.user.upsert({
     where: { email: CUSTOMER_EMAIL },
@@ -97,8 +112,6 @@ async function main() {
     });
   }
 
-  console.log(`Seeded ${categories.length} categories and ${products.length} products.`);
-  console.log(`Admin:    ${ADMIN_EMAIL} / ${ADMIN_PASSWORD}`);
   console.log(`Customer: ${CUSTOMER_EMAIL} / ${CUSTOMER_PASSWORD}`);
 }
 

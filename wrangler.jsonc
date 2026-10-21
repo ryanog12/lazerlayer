@@ -1,0 +1,39 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Worker name; it becomes https://lazerlayer.<your-subdomain>.workers.dev
+  "name": "lazerlayer",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Must match "name" above.
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "lazerlayer"
+    }
+  ],
+  "r2_buckets": [
+    {
+      // Product images, payment proofs and custom-request files (see src/lib/uploads.ts).
+      "binding": "UPLOADS",
+      "bucket_name": "lazerlayer-uploads"
+    }
+  ],
+  // Optional: Cloudflare Hyperdrive in front of Postgres for faster queries.
+  // Create one with `npx wrangler hyperdrive create lazerlayer-db --connection-string="<DATABASE_URL>"`,
+  // then uncomment and paste its id. When present, src/lib/db.ts uses it instead of DATABASE_URL.
+  // "hyperdrive": [
+  //   {
+  //     "binding": "HYPERDRIVE",
+  //     "id": "<HYPERDRIVE_ID>",
+  //     "localConnectionString": "postgresql://lazer:lazer@localhost:5432/lazerlayer"
+  //   }
+  // ],
+  "observability": {
+    "enabled": true
+  }
+}

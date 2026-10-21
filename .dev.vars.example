@@ -1,0 +1,9 @@
+# Secrets for `npm run preview` (local Workers runtime). Copy to .dev.vars and fill in.
+# In production these are set as Worker secrets in the Cloudflare dashboard instead.
+NEXTJS_ENV=development
+DATABASE_URL="postgresql://lazer:lazer@localhost:5432/lazerlayer?schema=public"
+AUTH_SECRET=""
+AUTH_TRUST_HOST=true
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
+RESEND_API_KEY=""
