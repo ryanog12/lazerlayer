@@ -1,0 +1,150 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  customer
+  admin
+}
+
+enum OrderStatus {
+  pending_payment
+  paid
+  in_production
+  shipped
+  completed
+  cancelled
+}
+
+enum PaymentMethod {
+  stripe
+  zelle
+  cashapp
+  venmo
+}
+
+enum TicketType {
+  custom_request
+  order_issue
+  general
+}
+
+enum TicketStatus {
+  open
+  in_progress
+  resolved
+}
+
+model User {
+  id           String          @id @default(cuid())
+  email        String          @unique
+  name         String?
+  role         Role            @default(customer)
+  passwordHash String
+  createdAt    DateTime        @default(now())
+  orders       Order[]
+  tickets      Ticket[]
+  messages     TicketMessage[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String
+  slug      String    @unique
+  createdAt DateTime  @default(now())
+  products  Product[]
+}
+
+model Product {
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String
+  /// Price in cents
+  price       Int
+  images      String[]
+  materials   String?
+  /// Null stock with isCustom = true means made-to-order
+  stock       Int?
+  isCustom    Boolean     @default(false)
+  featured    Boolean     @default(false)
+  active      Boolean     @default(true)
+  categoryId  String?
+  category    Category?   @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  orderItems  OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+}
+
+model Order {
+  id                   String        @id @default(cuid())
+  reference            String        @unique
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status               OrderStatus   @default(pending_payment)
+  /// Total in cents
+  total                Int
+  paymentMethod        PaymentMethod
+  stripeSessionId      String?       @unique
+  stripePaymentId      String?
+  paymentNote          String?
+  paymentProofUrl      String?
+  customerMarkedPaidAt DateTime?
+  paidAt               DateTime?
+  shippingName         String
+  shippingAddress      String
+  phone                String?
+  notes                String?
+  items                OrderItem[]
+  tickets              Ticket[]
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+}
+
+model OrderItem {
+  id        String   @id @default(cuid())
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  name      String
+  /// Unit price in cents at time of purchase
+  unitPrice Int
+  quantity  Int
+}
+
+model Ticket {
+  id                String          @id @default(cuid())
+  type              TicketType      @default(general)
+  status            TicketStatus    @default(open)
+  subject           String
+  userId            String?
+  user              User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orderId           String?
+  order             Order?          @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  contactName       String?
+  contactEmail      String?
+  contactPhone      String?
+  preferredMaterial String?
+  quantity          Int?
+  attachmentUrl     String?
+  messages          TicketMessage[]
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+}
+
+model TicketMessage {
+  id        String   @id @default(cuid())
+  ticketId  String
+  ticket    Ticket   @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String?
+  author    User?    @relation(fields: [authorId], references: [id], onDelete: SetNull)
+  isStaff   Boolean  @default(false)
+  body      String
+  createdAt DateTime @default(now())
+}
