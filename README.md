@@ -12,7 +12,8 @@ Staff manage orders, products, categories, tickets and users from an admin panel
 - Auth.js v5 (NextAuth) credentials provider, JWT sessions, `customer` / `admin` roles
 - Stripe Checkout (card, Apple Pay, Google Pay) + webhook handler
 - Resend for email (logs to console when not configured)
-- Local disk uploads in `./uploads` served by `/api/uploads/*`
+- Uploads in Cloudflare R2 (falls back to local `./uploads` under Node), served by `/api/uploads/*`
+- Deploys to Cloudflare Workers via the OpenNext adapter. See [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md)
 
 ## Quick start
 
@@ -21,7 +22,7 @@ Staff manage orders, products, categories, tickets and users from an admin panel
 #    a) local:  createuser -P lazer && createdb -O lazer lazerlayer
 #    b) docker: docker run -d --name lazerlayer-db -e POSTGRES_USER=lazer -e POSTGRES_PASSWORD=lazer \
 #                 -e POSTGRES_DB=lazerlayer -p 5432:5432 postgres:16
-#    c) Supabase: use the project's pooled connection string as DATABASE_URL
+#    c) Neon (hosted, free plan): use the project's connection string as DATABASE_URL
 
 # 2. Install & configure
 npm install
@@ -34,7 +35,13 @@ npm run db:seed
 # 4. Run
 npm run dev                    # http://localhost:3000
 # production: npm run build && npm start
+# Cloudflare Workers runtime locally: cp .dev.vars.example .dev.vars && npm run preview  (http://localhost:8787)
 ```
+
+## Deploying
+
+Production runs on Cloudflare Workers with Neon Postgres and R2 storage, auto-deployed from `main` by Cloudflare
+Workers Builds. The step-by-step guide is [docs/DEPLOY-CLOUDFLARE.md](docs/DEPLOY-CLOUDFLARE.md).
 
 ### Seeded accounts
 
@@ -102,11 +109,13 @@ src/
   actions/           server actions: auth, checkout, tickets, admin
   app/(site)/        storefront, auth, checkout, orders, account
   app/admin/         admin panel
-  app/api/           auth, stripe webhook, uploads
+  app/api/           auth, stripe webhook, uploads (R2 / local disk)
   components/        ui (shadcn), site, cart, tickets, admin
-  lib/               db, session guards, payments, email, uploads, formatting
+  lib/               db (per-request Prisma on Workers), session guards, payments, email, uploads, formatting
   auth.ts            Auth.js config
-uploads/             runtime uploads (git-ignored)
+uploads/             local-dev uploads (git-ignored)
+wrangler.jsonc       Cloudflare Worker config (R2 binding, optional Hyperdrive)
+open-next.config.ts  OpenNext Cloudflare adapter config
 ```
 
 ## Brand & theme
@@ -136,9 +145,9 @@ then call `router.refresh()` or navigate. Auth changes use a full page load so t
 
 ## Uploads & storage
 
-Files are written to `./uploads/{products,proofs,requests}` and served by `/api/uploads/...`. Product images are public;
-payment proofs and custom-request attachments are admin-only. To move to Cloudflare R2/S3, replace `saveUpload` in
-`src/lib/uploads.ts` with an S3 `PutObject` and return the object URL.
+`saveUpload` in `src/lib/uploads.ts` writes to the `UPLOADS` R2 bucket binding when running on Cloudflare Workers, and
+to `./uploads/{products,proofs,requests}` on local disk otherwise (`npm run dev` / `npm start`). Both are served by
+`/api/uploads/...`. Product images are public. Payment proofs and custom-request attachments are admin-only.
 
 ## Scripts
 
@@ -149,3 +158,7 @@ payment proofs and custom-request attachments are admin-only. To move to Cloudfl
 | `npm run lint` / `npm run typecheck` | ESLint / TypeScript |
 | `npm run db:migrate` | `prisma migrate dev` |
 | `npm run db:seed` | Seed categories, products and accounts |
+| `npm run db:deploy` | `prisma migrate deploy`, then seed only if the database is empty (used by Cloudflare builds) |
+| `npm run preview` | Build with OpenNext and run in the local Workers runtime (`wrangler dev`) |
+| `npm run deploy` | Build with OpenNext and deploy to Cloudflare from your machine |
+| `npm run cf-typegen` | Regenerate `cloudflare-env.d.ts` after editing `wrangler.jsonc` |
