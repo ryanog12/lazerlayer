@@ -5,7 +5,7 @@ import { Prisma, type Order } from "@prisma/client";
 import { db } from "@/lib/db";
 import { sendEmail } from "@/lib/email";
 import { formatPrice, PAYMENT_METHOD_LABEL } from "@/lib/format";
-import { generateOrderReference, getStripe, isStripeConfigured } from "@/lib/payments";
+import { areCardPaymentsAvailable, generateOrderReference, getStripe, isStripeSimulationEnabled } from "@/lib/payments";
 import { getCurrentUser } from "@/lib/session";
 import { saveUpload } from "@/lib/uploads";
 import type { ActionResult } from "@/lib/action-result";
@@ -25,7 +25,10 @@ const siteUrl = () => process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000
 
 async function createStripeSession(order: Order & { items: { name: string; unitPrice: number; quantity: number }[] }, email: string) {
   const stripe = getStripe();
-  if (!stripe) return `/checkout/stripe-test?order=${order.reference}`;
+  if (!stripe) {
+    if (!isStripeSimulationEnabled()) throw new Error("Card payments are not configured.");
+    return `/checkout/stripe-test?order=${order.reference}`;
+  }
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     customer_email: email,
@@ -62,6 +65,9 @@ export async function placeOrder(formData: FormData): Promise<ActionResult> {
   });
   if (!parsed.success) return { error: parsed.error.issues[0].message };
   const data = parsed.data;
+  if (data.paymentMethod === "stripe" && !areCardPaymentsAvailable()) {
+    return { error: "Card payments aren't available right now. Please choose Zelle, Cash App or Venmo." };
+  }
 
   const products = await db.product.findMany({
     where: { id: { in: data.items.map((i) => i.productId) }, active: true },
@@ -167,9 +173,9 @@ export async function retryStripePayment(reference: string): Promise<ActionResul
   }
 }
 
-/** Test-mode only: used when STRIPE_SECRET_KEY is absent to simulate a successful card payment. */
+/** Development only: used when STRIPE_SECRET_KEY is absent to simulate a successful card payment. */
 export async function simulateStripePayment(reference: string): Promise<ActionResult> {
-  if (isStripeConfigured()) throw new Error("Stripe is configured; use real Checkout.");
+  if (!isStripeSimulationEnabled()) throw new Error("Simulated payments are disabled.");
   const { order } = await getOwnedOrder(reference);
   if (order.status === "pending_payment") {
     await db.order.update({

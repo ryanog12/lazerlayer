@@ -154,8 +154,9 @@ Without these, the site still works, but order and status emails are only writte
 
 ### Stripe (card / Apple Pay / Google Pay), optional
 
-Without `STRIPE_SECRET_KEY`, the card option goes to a clearly labelled *simulated* payment page. Set it before
-launch, or customers will see the simulated page. Use test keys (`sk_test_...`) until you're ready to go live.
+Without `STRIPE_SECRET_KEY`, the live site hides the card option and checkout offers only Zelle, Cash App and Venmo.
+(The simulated card page exists only in local development, never on the live site.) Use test keys (`sk_test_...`)
+until you're ready to go live.
 
 1. In the [Stripe dashboard](https://dashboard.stripe.com), go to **Developers** → **API keys** and copy the **Secret
    key**.
@@ -231,7 +232,7 @@ nameservers at your registrar to the two Cloudflare shows. This usually takes un
 | Site shows "Application error" / 500 on every page | `AUTH_SECRET` is missing (Step 6). Check **Observability** → **Logs**. |
 | Pages fail with "no such table" | Database setup didn't run. Open the latest build log and check the `db:deploy` step for errors. |
 | Login says invalid credentials for the admin | The seed only runs on an empty database. If the first successful deploy ran before you set `SEED_ADMIN_*`, the default admin is `admin@lazerlayer.com` / `LazerAdmin123!`. Log in with it and change it, or ask a developer to reset it. |
-| Card checkout shows "Simulated payment" | `STRIPE_SECRET_KEY` isn't set. |
+| Checkout has no card option | `STRIPE_SECRET_KEY` isn't set. Without it only Zelle, Cash App and Venmo are offered. |
 | Orders paid by card stay "Pending payment" | Webhook URL or `STRIPE_WEBHOOK_SECRET` is wrong. Check Stripe → **Webhooks** → your endpoint → recent deliveries. |
 | Emails not arriving | Check `RESEND_API_KEY`, and that `EMAIL_FROM` uses a domain verified in Resend. |
 

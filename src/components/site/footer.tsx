@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { isStripeConfigured } from "@/lib/payments";
 import { Logo } from "./logo";
 
 export function Footer() {
@@ -26,7 +27,9 @@ export function Footer() {
         </div>
         <div className="space-y-2 text-sm">
           <p className="font-medium">We accept</p>
-          <p className="text-muted-foreground">Cards, Apple Pay &amp; Google Pay via Stripe · Zelle · Cash App · Venmo</p>
+          <p className="text-muted-foreground">
+            {isStripeConfigured() && <>Cards, Apple Pay &amp; Google Pay via Stripe · </>}Zelle · Cash App · Venmo
+          </p>
         </div>
       </div>
       <div className="border-t py-4 text-center text-xs text-muted-foreground">
