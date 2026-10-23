@@ -3,6 +3,12 @@ import Stripe from "stripe";
 
 export const isStripeConfigured = () => Boolean(process.env.STRIPE_SECRET_KEY);
 
+/** The simulated card page can mark orders paid for free, so it only exists in development. */
+export const isStripeSimulationEnabled = () => !isStripeConfigured() && process.env.NODE_ENV !== "production";
+
+/** Whether checkout offers the card option at all: real Stripe, or the dev-only simulation. */
+export const areCardPaymentsAvailable = () => isStripeConfigured() || isStripeSimulationEnabled();
+
 let stripeClient: Stripe | null = null;
 
 export function getStripe() {

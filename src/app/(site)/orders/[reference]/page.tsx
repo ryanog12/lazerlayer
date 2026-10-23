@@ -12,7 +12,7 @@ import { ActionForm } from "@/components/site/action-form";
 import { retryStripePayment } from "@/actions/checkout";
 import { db } from "@/lib/db";
 import { formatDate, formatPrice, PAYMENT_METHOD_LABEL } from "@/lib/format";
-import { getStripe, manualPaymentInstructions } from "@/lib/payments";
+import { areCardPaymentsAvailable, getStripe, manualPaymentInstructions } from "@/lib/payments";
 import { requireUser } from "@/lib/session";
 import { PaymentSentForm } from "./payment-sent-form";
 
@@ -132,10 +132,16 @@ export default async function OrderPage({ params, searchParams }: Props) {
       {pending && order.paymentMethod === "stripe" && (
         <Card>
           <CardContent className="flex flex-wrap items-center justify-between gap-4">
-            <p className="text-sm text-muted-foreground">This order is awaiting card payment.</p>
-            <ActionForm action={retryStripePayment.bind(null, order.reference)} refresh={false}>
-              <SubmitButton pendingText="Redirecting…">Pay {formatPrice(order.total)} now</SubmitButton>
-            </ActionForm>
+            <p className="text-sm text-muted-foreground">
+              {areCardPaymentsAvailable()
+                ? "This order is awaiting card payment."
+                : "This order is awaiting card payment, but card payments aren't available right now. Please contact us to pay another way."}
+            </p>
+            {areCardPaymentsAvailable() && (
+              <ActionForm action={retryStripePayment.bind(null, order.reference)} refresh={false}>
+                <SubmitButton pendingText="Redirecting…">Pay {formatPrice(order.total)} now</SubmitButton>
+              </ActionForm>
+            )}
           </CardContent>
         </Card>
       )}

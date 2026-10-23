@@ -22,9 +22,18 @@ const METHODS = [
   { value: "venmo", label: "Venmo", hint: "Pay our Venmo handle", icon: Smartphone },
 ] as const;
 
-export function CheckoutForm({ defaultName, stripeLive }: { defaultName: string; stripeLive: boolean }) {
+export function CheckoutForm({
+  defaultName,
+  stripeLive,
+  cardAvailable,
+}: {
+  defaultName: string;
+  stripeLive: boolean;
+  cardAvailable: boolean;
+}) {
   const { items, ready, subtotal, clear } = useCart();
-  const [method, setMethod] = useState<(typeof METHODS)[number]["value"]>("stripe");
+  const methods = cardAvailable ? METHODS : METHODS.filter((m) => m.value !== "stripe");
+  const [method, setMethod] = useState<(typeof METHODS)[number]["value"]>(methods[0].value);
   const { state, pending, onSubmit } = useFormAction(placeOrder, { refresh: false });
 
   useEffect(() => {
@@ -76,7 +85,7 @@ export function CheckoutForm({ defaultName, stripeLive }: { defaultName: string;
           <CardHeader><CardTitle>Payment method</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div role="radiogroup" className="grid gap-3 sm:grid-cols-2">
-              {METHODS.map((m) => (
+              {methods.map((m) => (
                 <label
                   key={m.value}
                   className={cn(

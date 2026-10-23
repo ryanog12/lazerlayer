@@ -90,7 +90,9 @@ Handled events: `checkout.session.completed`, `checkout.session.async_payment_su
 appear automatically in Checkout once enabled in the Stripe dashboard (and the domain is verified for Apple Pay).
 
 **Stripe stub.** When `STRIPE_SECRET_KEY` is empty, the card path redirects to `/checkout/stripe-test`, a clearly
-labelled simulated payment page that marks the order paid. This page 404s once Stripe keys are configured.
+labelled simulated payment page that marks the order paid. The stub only exists in development (`next dev`): in
+production builds without a Stripe key the card option is hidden, checkout offers only manual payments, and the stub
+page 404s. It also 404s once Stripe keys are configured.
 
 **Zelle / Cash App / Venmo.** The order is created as `pending_payment` with a unique reference (`LL-XXXXXX`). The order
 page shows the handle, amount, memo (the reference), step-by-step instructions and a QR placeholder (swap in real QR

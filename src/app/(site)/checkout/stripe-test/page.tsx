@@ -9,14 +9,14 @@ import { ActionForm } from "@/components/site/action-form";
 import { simulateStripePayment } from "@/actions/checkout";
 import { db } from "@/lib/db";
 import { formatPrice } from "@/lib/format";
-import { isStripeConfigured } from "@/lib/payments";
+import { isStripeSimulationEnabled } from "@/lib/payments";
 import { requireUser } from "@/lib/session";
 
 export const metadata: Metadata = { title: "Test payment", robots: { index: false } };
 
 export default async function StripeTestPage({ searchParams }: { searchParams: Promise<{ order?: string }> }) {
   const { order: reference } = await searchParams;
-  if (isStripeConfigured() || !reference) notFound();
+  if (!isStripeSimulationEnabled() || !reference) notFound();
   const user = await requireUser(`/checkout/stripe-test?order=${reference}`);
   const order = await db.order.findUnique({ where: { reference } });
   if (!order || order.userId !== user.id) notFound();
