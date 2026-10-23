@@ -25,9 +25,9 @@ export default async function ProductsPage({
   if (category) where.category = { slug: category };
   if (query) {
     where.OR = [
-      { name: { contains: query, mode: "insensitive" } },
-      { description: { contains: query, mode: "insensitive" } },
-      { materials: { contains: query, mode: "insensitive" } },
+      { name: { contains: query } },
+      { description: { contains: query } },
+      { materials: { contains: query } },
     ];
   }
 

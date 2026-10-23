@@ -1,27 +1,28 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, productImages } from "@/lib/format";
 
 export type ProductCardData = {
   slug: string;
   name: string;
   price: number;
-  images: string[];
+  images: string;
   isCustom: boolean;
   category: { name: string } | null;
 };
 
 export function ProductCard({ product }: { product: ProductCardData }) {
+  const [image] = productImages(product);
   return (
     <Link
       href={`/products/${product.slug}`}
       className="surface-bevel group overflow-hidden rounded-xl border bg-card transition-all hover:-translate-y-0.5 hover:border-primary/50 hover:shadow-[0_0_28px_-10px_var(--laser-glow)]"
     >
       <div className="relative aspect-square overflow-hidden bg-muted">
-        {product.images[0] && (
+        {image && (
           <Image
-            src={product.images[0]}
+            src={image}
             alt={product.name}
             fill
             unoptimized

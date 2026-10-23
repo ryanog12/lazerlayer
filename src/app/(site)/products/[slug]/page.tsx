@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AddToCart } from "@/components/cart/add-to-cart";
 import { db } from "@/lib/db";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, productImages } from "@/lib/format";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -21,7 +21,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: product.name,
     description: product.description.slice(0, 160),
-    openGraph: { images: product.images.slice(0, 1) },
+    openGraph: { images: productImages(product).slice(0, 1) },
   };
 }
 
@@ -29,6 +29,7 @@ export default async function ProductPage({ params }: Props) {
   const product = await getProduct((await params).slug);
   if (!product) notFound();
 
+  const images = productImages(product);
   const outOfStock = !product.isCustom && product.stock !== null && product.stock <= 0;
 
   return (
@@ -47,13 +48,13 @@ export default async function ProductPage({ params }: Props) {
       <div className="grid gap-10 md:grid-cols-2">
         <div className="space-y-3">
           <div className="relative aspect-square overflow-hidden rounded-2xl border bg-muted">
-            {product.images[0] && (
-              <Image src={product.images[0]} alt={product.name} fill unoptimized priority className="object-cover" sizes="(min-width: 768px) 50vw, 100vw" />
+            {images[0] && (
+              <Image src={images[0]} alt={product.name} fill unoptimized priority className="object-cover" sizes="(min-width: 768px) 50vw, 100vw" />
             )}
           </div>
-          {product.images.length > 1 && (
+          {images.length > 1 && (
             <div className="grid grid-cols-4 gap-3">
-              {product.images.slice(1).map((src) => (
+              {images.slice(1).map((src) => (
                 <div key={src} className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
                   <Image src={src} alt="" fill unoptimized className="object-cover" sizes="12vw" />
                 </div>
@@ -92,7 +93,7 @@ export default async function ProductPage({ params }: Props) {
               slug: product.slug,
               name: product.name,
               price: product.price,
-              image: product.images[0],
+              image: images[0],
             }}
           />
           <div className="rounded-xl border border-dashed p-4">

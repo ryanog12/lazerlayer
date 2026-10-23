@@ -1,0 +1,40 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // Worker name; it becomes https://lazerlayer.<your-subdomain>.workers.dev
+  "name": "lazerlayer",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  // Keep variables set in the Cloudflare dashboard (Settings > Variables & Secrets) across deploys.
+  "keep_vars": true,
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    {
+      // Must match "name" above.
+      "binding": "WORKER_SELF_REFERENCE",
+      "service": "lazerlayer"
+    }
+  ],
+  "r2_buckets": [
+    {
+      // Product images, payment proofs and custom-request files (see src/lib/uploads.ts).
+      "binding": "UPLOADS",
+      "bucket_name": "lazerlayer-uploads"
+    }
+  ],
+  "d1_databases": [
+    {
+      // Cloudflare D1 (SQLite) database used through Prisma (see src/lib/db.ts). Deploys find the
+      // database by name, so no database_id is needed once "lazerlayer-db" exists in the account.
+      "binding": "DB",
+      "database_name": "lazerlayer-db",
+      "migrations_dir": "migrations"
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

@@ -12,10 +12,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { SubmitButton } from "@/components/site/submit-button";
 import { saveProduct } from "@/actions/admin";
 import { FormPendingContext, useFormAction } from "@/components/site/action-form";
+import { productImages } from "@/lib/format";
 
 export function ProductForm({ product, categories }: { product?: Product; categories: Category[] }) {
   const { state, pending, onSubmit } = useFormAction(saveProduct, { toastSuccess: true });
-  const [images, setImages] = useState<string[]>(product?.images ?? []);
+  const [images, setImages] = useState<string[]>(product ? productImages(product) : []);
 
   return (
     <FormPendingContext.Provider value={pending}>

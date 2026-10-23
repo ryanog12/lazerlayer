@@ -46,6 +46,16 @@ export const TICKET_TYPE_LABEL: Record<TicketType, string> = {
   general: "General",
 };
 
+/** Decodes Product.images, stored as a JSON array string because SQLite/D1 has no array columns. */
+export function productImages(product: { images: string }): string[] {
+  try {
+    const parsed: unknown = JSON.parse(product.images);
+    return Array.isArray(parsed) ? parsed.filter((v): v is string => typeof v === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export function slugify(input: string) {
   return input
     .toLowerCase()

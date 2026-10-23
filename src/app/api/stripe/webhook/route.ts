@@ -14,7 +14,8 @@ export async function POST(req: Request) {
 
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(await req.text(), signature, secret);
+    // The async variant uses Web Crypto, which is what's available on Cloudflare Workers.
+    event = await stripe.webhooks.constructEventAsync(await req.text(), signature, secret);
   } catch (err) {
     return new Response(`Webhook error: ${(err as Error).message}`, { status: 400 });
   }

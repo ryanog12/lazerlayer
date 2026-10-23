@@ -9,7 +9,7 @@ import { ConfirmDelete } from "@/components/admin/confirm-delete";
 import { deleteProduct } from "@/actions/admin";
 import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/session";
-import { formatPrice } from "@/lib/format";
+import { formatPrice, productImages } from "@/lib/format";
 
 export const metadata = { title: "Products" };
 
@@ -41,7 +41,7 @@ export default async function AdminProductsPage() {
                   <TableCell>
                     <div className="flex items-center gap-3">
                       <div className="relative size-10 overflow-hidden rounded bg-muted">
-                        {p.images[0] && <Image src={p.images[0]} alt="" fill unoptimized className="object-cover" sizes="40px" />}
+                        {productImages(p)[0] && <Image src={productImages(p)[0]} alt="" fill unoptimized className="object-cover" sizes="40px" />}
                       </div>
                       <span className="font-medium">{p.name}</span>
                     </div>

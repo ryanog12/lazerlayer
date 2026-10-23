@@ -1,0 +1,8 @@
+# Secrets for `npm run preview` (local Workers runtime). Copy to .dev.vars and fill in.
+# In production these are set as Worker secrets in the Cloudflare dashboard instead.
+NEXTJS_ENV=development
+AUTH_SECRET=""
+AUTH_TRUST_HOST=true
+STRIPE_SECRET_KEY=""
+STRIPE_WEBHOOK_SECRET=""
+RESEND_API_KEY=""

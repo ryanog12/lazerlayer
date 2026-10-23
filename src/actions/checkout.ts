@@ -77,41 +77,51 @@ export async function placeOrder(formData: FormData): Promise<ActionResult> {
   }
   const total = lines.reduce((sum, l) => sum + l.product.price * l.quantity, 0);
 
+  // D1 has no interactive transactions: each guarded decrement is atomic on its own, and stock that
+  // was already reserved is released again if a later line sells out or the order insert fails.
+  const reserved: typeof lines = [];
+  const releaseStock = () =>
+    Promise.all(
+      reserved.map((l) =>
+        db.product.update({ where: { id: l.product.id }, data: { stock: { increment: l.quantity } } }),
+      ),
+    );
+
   let order;
   try {
-    order = await db.$transaction(async (tx) => {
-      for (const l of lines) {
-        if (!l.product.isCustom && l.product.stock !== null) {
-          const res = await tx.product.updateMany({
-            where: { id: l.product.id, stock: { gte: l.quantity } },
-            data: { stock: { decrement: l.quantity } },
-          });
-          if (res.count === 0) throw new Error(`OUT_OF_STOCK:${l.product.name}`);
-        }
+    for (const l of lines) {
+      if (!l.product.isCustom && l.product.stock !== null) {
+        const res = await db.product.updateMany({
+          where: { id: l.product.id, stock: { gte: l.quantity } },
+          data: { stock: { decrement: l.quantity } },
+        });
+        if (res.count === 0) throw new Error(`OUT_OF_STOCK:${l.product.name}`);
+        reserved.push(l);
       }
-      return tx.order.create({
-        data: {
-          reference: generateOrderReference(),
-          userId: user.id,
-          total,
-          paymentMethod: data.paymentMethod,
-          shippingName: data.shippingName,
-          shippingAddress: data.shippingAddress,
-          phone: data.phone,
-          notes: data.notes,
-          items: {
-            create: lines.map((l) => ({
-              productId: l.product.id,
-              name: l.product.name,
-              unitPrice: l.product.price,
-              quantity: l.quantity,
-            })),
-          },
+    }
+    order = await db.order.create({
+      data: {
+        reference: generateOrderReference(),
+        userId: user.id,
+        total,
+        paymentMethod: data.paymentMethod,
+        shippingName: data.shippingName,
+        shippingAddress: data.shippingAddress,
+        phone: data.phone,
+        notes: data.notes,
+        items: {
+          create: lines.map((l) => ({
+            productId: l.product.id,
+            name: l.product.name,
+            unitPrice: l.product.price,
+            quantity: l.quantity,
+          })),
         },
-        include: { items: true },
-      });
+      },
+      include: { items: true },
     });
   } catch (err) {
+    await releaseStock();
     if (err instanceof Error && err.message.startsWith("OUT_OF_STOCK:")) {
       return { error: `${err.message.slice(13)} just sold out. Please update your cart.` };
     }
